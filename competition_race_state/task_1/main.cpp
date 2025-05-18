@@ -7,20 +7,21 @@
 using namespace std;
 
 void client_f(atomic<int>& max_count, atomic<int>& count, atomic<bool>& client_done) {
-	while (count < max_count) {
+	while (count.load(memory_order_relaxed) < max_count.load(memory_order_relaxed)) {
 		this_thread::sleep_for(1s);
-		++count;
-		cout << "client_f   count = " << count.load() << endl;
+		count.fetch_add(1, memory_order_relaxed);
+		cout << "client_f   count = " << count.load(memory_order_relaxed) << endl;
 	}
-	client_done.store(true);
+	client_done.store(true, memory_order_release);
 }
 
 void operator_f(atomic<int>& count, atomic<bool>& client_done) {
-	while (!client_done.load() || count > 0) {
+	while (!client_done.load(memory_order_acquire) ||
+		count.load(memory_order_acquire) > 0) {
 		this_thread::sleep_for(2s);
-		if (count > 0) {
-			--count;
-			cout << "operator_f count = " << count.load() << endl;
+		if (count.load(memory_order_acquire) > 0) {
+			count.fetch_sub(1, memory_order_acq_rel);
+			cout << "operator_f count = " << count.load(memory_order_acquire) << endl;
 		}
 	}
 }
