@@ -42,7 +42,8 @@ void worker(int index) {
 
 	random_device rd;
 	mt19937 gen(rd());
-	uniform_int_distribution<> dist(0, 1000);
+	uniform_int_distribution<> sleep_dist(0, 1000);
+	uniform_real_distribution<> error_dist(0.0, 1.0);
 
 	{
 		lock_guard<mutex> lk(mtx_console);
@@ -59,11 +60,28 @@ void worker(int index) {
 	Timer timer;
 
 	for (int i = 0; i < BAR_WIDTH; ++i) {
-		int ms = dist(gen);
+		int ms = sleep_dist(gen);
 		this_thread::sleep_for(chrono::milliseconds(ms));
+
+		bool is_error = (error_dist(gen) < 0.2);
 		lock_guard<mutex> lk(mtx_console);
 		consol_parameter::SetPosition(BAR_X + i, y);
-		cout << "=";
+
+		if (is_error) {
+			try {
+				throw runtime_error("random error");
+			}
+			catch (...) {
+				consol_parameter::SetColor(FOREGROUND_RED, 0);
+				cout << "X";
+				consol_parameter::SetColor(FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE, 0);
+			}
+		}
+		else {
+			consol_parameter::SetColor(FOREGROUND_GREEN, 0);
+			cout << "=";
+			consol_parameter::SetColor(FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE, 0);
+		}
 	}
 
 	lock_guard<mutex> lk(mtx_console);
